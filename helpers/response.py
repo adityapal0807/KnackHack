@@ -4,6 +4,7 @@ from openai import OpenAI
 import json
 import logging
 from typing import Optional
+import requests
 
 from .open_ai_key import OPENAI_KYE
 # from custom_functions import candidate_cv_info_extraction
@@ -62,3 +63,27 @@ class Responce():
     def token_used(self,responce):
         print(responce)
         return responce['usage']['total_tokens']
+
+
+def add_message(role, message , messages):
+    messages.append({"role": role, "content": message})
+
+
+def make_openai_call(messages,model_name='gpt-3.5-turbo',temperature=0.7):    
+    request_payload = {
+                'model': model_name,
+                'temperature': temperature,
+                'messages': messages,
+            }
+    response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {OPENAI_KYE}',
+                'Content-Type': 'application/json',
+            },
+            json=request_payload,
+        )
+    print(response)
+    res = response.json()  # Parse response as JSON
+    res = res['choices'][0].get('message').get('content')
+    return json.loads(res)

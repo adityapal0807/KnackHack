@@ -10,5 +10,8 @@ urlpatterns = [
     path('create_rules', create_rules),
     path('get_all_collections',get_all_collections),
     path('new_file_upload',new_file_upload),
-    path('return_top_chunks',return_top_chunks)
+    path('return_top_chunks',return_top_chunks),
+    path('query_classification', query_classification),
+    path('injection_check_api',injection_check_api),
+    path('check_pii',chatbot_with_pii)
 ]

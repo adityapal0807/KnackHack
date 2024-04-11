@@ -12,6 +12,6 @@ class Rule(BaseModel):
     rules_json = models.JSONField()
 
 class FileCategory(BaseModel):
-    file_name = models.CharField()
-    category = models.CharField()    
+    file_name = models.CharField(max_length=100)
+    category = models.CharField(max_length=100)    
 
