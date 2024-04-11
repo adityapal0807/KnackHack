@@ -30,6 +30,14 @@ import os
 import tempfile
 
 
+# file me se rules --done
+# rules ka model theek
+# queries model
+# chunk size-512 -- done
+# multiple collection me se query
+# auth-pal
+
+
 class User_Register(APIView):
     def post(self,request):
         serializer = UserSerializer(data=request.data)
@@ -62,6 +70,32 @@ def create_rules(request):
     rule.save()
 
     return Response({'rules':ans})
+
+@api_view(['POST'])
+def create_rules_new(request):
+    uploaded_files= request.FILES.values()
+    
+    # Create a temporary directory
+    temp_dir = tempfile.mkdtemp()
+
+    for file_obj in uploaded_files:
+        file_name = file_obj.name
+        print(file_name)
+        file_path = os.path.join(temp_dir, file_name)
+        with open(file_path, 'wb') as f:
+            f.write(file_obj.read())
+
+    collection_name= "rules"
+    output_name= "output"
+    ans= main(collection_name, temp_dir, output_name)
+
+    # TODO:     RULES  TO BE SAVED IN MODEL
+    rule = Rule()
+    rule.rules_json = ans
+    rule.save()
+
+    return Response({'rules':ans})
+
 
 @api_view(['GET'])
 def get_rules(request):

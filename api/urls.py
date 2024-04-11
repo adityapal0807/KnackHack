@@ -8,6 +8,7 @@ urlpatterns = [
     
     path('get_rules', get_rules),
     path('create_rules', create_rules),
+    path('create_rules_new',create_rules_new),
     path('get_all_collections',get_all_collections),
     path('new_file_upload',new_file_upload),
     path('return_top_chunks',return_top_chunks),

@@ -112,6 +112,14 @@ class CreateCollection:
                                 ids=ids)
         logging.info(db_collection.count())
         logging.info("Database filled successfully.")
+
+        # remove csv
+        csv_file_path="output.csv"
+        if os.path.exists(csv_file_path):
+            os.remove(csv_file_path)
+            print(f"The file '{csv_file_path}' has been successfully deleted.")
+        else:
+            print(f"The file '{csv_file_path}' does not exist.")
         return db_collection
     
     # Which collection to select If fill _collection =True then we need csv path so we can fill the csv
