@@ -83,7 +83,7 @@ def make_openai_call(messages,model_name='gpt-3.5-turbo',temperature=0.7):
             },
             json=request_payload,
         )
-    
+    print(response)
     res = response.json()  # Parse response as JSON
     res = res['choices'][0].get('message').get('content')
     return json.loads(res)

@@ -21,6 +21,8 @@ from helpers.agent import create_new_collection, return_chunks_from_collection
 from helpers.response import make_openai_call, add_message
 from helpers.prompts import query_classification_prompt
 from helpers.injection_check import run_injection_check
+from helpers.pii import AnonymizerService
+from helpers.base_api import make_openai_call_api
 
 from .models import Rule
 
@@ -126,3 +128,43 @@ def injection_check_api(request):
     query= request.data['query']
     ans= run_injection_check(query)
     return Response({"result":ans})
+
+
+
+@api_view(['POST'])
+def chatbot_with_pii(request):
+
+
+    #TODO
+    # First send query for question classification
+    # If success 
+    #   Second check for prompt injection
+        # if caught
+        #     generate KeyError
+        # else
+        #     based on question gather rag chunks , anonymize them with the question and send to gpt
+        #     then after response deanonymize_text
+    # else
+    #   generate alert
+    
+    question= request.data['query']
+
+    # Collect RAG Chunks based on questions
+    collection_name= request.data['collection_name']
+    ans= return_chunks_from_collection(question,collection_name, folder_path='temp', output_name="output")
+
+    # #STEP 1 Anonymize data
+    anonymizer= AnonymizerService()
+    anonymized_question= anonymizer.anonymize_text(question)
+    anonymized_chunks = anonymizer.anonymize_text(str(ans))
+
+    #Step 2 Make OpenAi call
+    messages=[]
+    add_message('user',f"Answer the query based on the context provided.CONTEXT ::: {str(anonymized_chunks)} QUERY ::: {anonymized_question}",messages)
+    print(messages)
+    response = make_openai_call_api(messages)
+
+    # Step 3 DeAnonymize
+    deanonymize_text = anonymizer.deanonymize_text(str(response))
+
+    return Response({"gpt_response":response,"deanonymize":deanonymize_text})
