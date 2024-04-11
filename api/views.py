@@ -29,6 +29,8 @@ from .models import Rule
 import os
 import tempfile
 
+anonymizer= AnonymizerService()
+
 
 class User_Register(APIView):
     def post(self,request):
@@ -134,7 +136,6 @@ def injection_check_api(request):
 @api_view(['POST'])
 def chatbot_with_pii(request):
 
-
     #TODO
     # First send query for question classification
     # If success 
@@ -154,7 +155,7 @@ def chatbot_with_pii(request):
     ans= return_chunks_from_collection(question,collection_name, folder_path='temp', output_name="output")
 
     # #STEP 1 Anonymize data
-    anonymizer= AnonymizerService()
+    anonymizer.reset_mapping()
     anonymized_question= anonymizer.anonymize_text(question)
     anonymized_chunks = anonymizer.anonymize_text(str(ans))
 
