@@ -18,6 +18,9 @@ import json
 from helpers.agent import main
 from helpers.create_vector_db import CreateCollection
 from helpers.agent import create_new_collection, return_chunks_from_collection
+from helpers.response import make_openai_call, add_message
+from helpers.prompts import query_classification_prompt
+from helpers.injection_check import run_injection_check
 
 from .models import Rule
 
@@ -105,3 +108,21 @@ def return_top_chunks(request):
     return Response({'chunks':ans})
     
 
+@api_view(['POST'])
+def query_classification(request):
+    query= request.data['query']
+    messages=[]
+    add_message('system',query_classification_prompt,messages)
+    add_message('user',f"query: {query}",messages)
+    ans= make_openai_call(messages)
+
+    # TODO save info in user conversations
+
+    return Response(ans)
+
+
+@api_view(['POST'])
+def injection_check_api(request):
+    query= request.data['query']
+    ans= run_injection_check(query)
+    return Response({"result":ans})

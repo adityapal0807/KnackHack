@@ -133,6 +133,8 @@ def return_chunks_from_collection(query,collection_name, folder_path, output_nam
     agent.create_db_collection()
     results= agent.return_chunks(query)
     return results
+
+    
         
 
 # main()
