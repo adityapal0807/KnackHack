@@ -13,5 +13,6 @@ class Rule(BaseModel):
 
 class FileCategory(BaseModel):
     file_name = models.CharField(max_length=100)
-    category = models.CharField(max_length=100)    
+    category = models.CharField(max_length=100) 
+
 

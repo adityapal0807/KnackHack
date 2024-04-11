@@ -10,6 +10,9 @@ class AnonymizerService:
 
     def create_pattern():
         pass
+
+    def reset_mapping(self):
+        self.anonymizer.reset_deanonymizer_mapping()
     
     def anonymize_text(self, text):
         anonymized_text = self.anonymizer.anonymize(text)
