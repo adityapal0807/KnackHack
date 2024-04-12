@@ -9,7 +9,9 @@ class User(AbstractUser):
     pass
 
 class Rule(BaseModel):
-    rules_json = models.JSONField()
+    rule_number=models.CharField(max_length=50)
+    rule_description=models.TextField()
+    rule_threshold=models.IntegerField(default=10, choices=[(i, i) for i in range(1, 11)])
 
 class FileCategory(BaseModel):
     file_name = models.CharField(max_length=100)

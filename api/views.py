@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
+from django.core.serializers import serialize
 
 from .serializer import UserSerializer
 from .models import User,Rule
@@ -33,7 +34,7 @@ anonymizer= AnonymizerService()
 
 
 # file me se rules --done
-# rules ka model theek
+# rules ka model theek --done
 # queries model
 # chunk size-512 -- done
 # multiple collection me se query
@@ -91,19 +92,34 @@ def create_rules_new(request):
     output_name= "output"
     ans= main(collection_name, temp_dir, output_name)
 
+    # rules = ans['rules']
+    # print(ans)
+
+    # print("rules: ",rules)
+    for rule_number, rule_description in ans.items():
+        print('here')
+        # Extract rule number from key (e.g., "rule_1" -> "1")
+        rule= Rule()
+        rule.rule_number= rule_number
+        rule.rule_description= rule_description
+        rule.save()
+
     # TODO:     RULES  TO BE SAVED IN MODEL
-    rule = Rule()
-    rule.rules_json = ans
-    rule.save()
+    # rule = Rule()
+    # rule.rules_json = ans
+    # rule.save()
 
     return Response({'rules':ans})
 
 
 @api_view(['GET'])
 def get_rules(request):
-    # TODO  GET RULES FROM MODEL
-    rules = Rule.objects.first()
-    return Response({'rules':rules.rules_json})
+    # Serialize the queryset of Rule objects into JSON format
+    rules = Rule.objects.all()
+    serialized_rules = serialize('json', rules)
+
+    # Return the serialized data
+    return Response(serialized_rules)
 
 @api_view(['GET'])
 def get_all_collections(request):
