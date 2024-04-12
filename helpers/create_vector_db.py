@@ -138,6 +138,6 @@ class CreateCollection:
                 
     def run_query(self,collection, query: str) -> List[Tuple]:
         """Run a query against the collection."""
-        results = collection.query(query_texts=[query], n_results=4)
+        results = collection.query(query_texts=[query], n_results=10)
 
         return results

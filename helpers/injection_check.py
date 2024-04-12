@@ -7,6 +7,6 @@ def run_injection_check(query):
     injection_identifier = HuggingFaceInjectionIdentifier()
     try:
         injection_identifier.run(query)
-        return "no_injection"
-    except ValueError:
-        return "prompt_injection_detected"
+        return "Safe"
+    except:
+        return "Prompt Injection Detected"

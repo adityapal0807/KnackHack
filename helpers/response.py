@@ -78,7 +78,7 @@ def make_openai_call(messages,model_name='gpt-3.5-turbo',temperature=0.7):
     response = requests.post(
             'https://api.openai.com/v1/chat/completions',
             headers={
-                'Authorization': f'Bearer {OPENAI_KYE}',
+                'Authorization': 'Bearer {OPENAI_KYE}',
                 'Content-Type': 'application/json',
             },
             json=request_payload,

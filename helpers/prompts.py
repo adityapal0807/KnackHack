@@ -81,5 +81,5 @@ You can validate you classifications with the help of the following rules:
 10. Questions should not seek advice on using AI to bypass auditing requirements, impact assessment, and security measures.
 
 * RESPONSE *
-Please provide your response inside a list of dictionary with keys exactly same of the following format:("query": (query here), "class":(classfication here), "reason":(short one line reason here)) and nothing else so that it helps extracting later using json.loads. Keys must be enclosed in doubleqoutes,not single.
+Please provide your response inside a dictionary with keys exactly same of the following format:("query": (query here), "class":(classfication here), "reason":(short one line reason here)) and nothing else so that it helps extracting later using json.loads. Keys must be enclosed in doubleqoutes,not single.
 '''

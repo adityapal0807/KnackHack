@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def make_openai_call_api(messages,model_name='gpt-3.5-turbo',temperature=0.7,stream:bool=False):
-
     request_payload = {
                 'model': model_name,
                 'temperature': temperature,
@@ -21,12 +20,15 @@ def make_openai_call_api(messages,model_name='gpt-3.5-turbo',temperature=0.7,str
             json=request_payload,
             stream=stream,
         )
+    print(response.text)
     res=json.loads(response.content.decode('utf-8'))
     res = res['choices'][0].get('message').get('content')
+    print(res)
     return res
     # if stream == False:
     #     res=json.loads(response.content.decode('utf-8'))
     #     res = res['choices'][0].get('message').get('content')
+    #     print(res)
     #     return res
     # else:
     #     for chunk in response.iter_lines():

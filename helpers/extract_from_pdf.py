@@ -56,7 +56,7 @@ class PDFToCSVConverter:
 
             # call chunking here for the page data
             # create a list of chunks for a particular page
-            sentence_splitter = SentenceSplitter(chunk_size=600)
+            sentence_splitter = SentenceSplitter(chunk_size=256)
             df = sentence_splitter.semantic_chunking(text)
 
             page_chunk_list= (df['chunked_sentence']).tolist()

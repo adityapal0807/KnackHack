@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
-from django.core.serializers import serialize
+from django.http import StreamingHttpResponse
 
 from .serializer import UserSerializer
 from .models import User,Rule
@@ -14,6 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 import json
+from django.core.serializers import serialize
 
 # get list of all collections
 from helpers.agent import main
@@ -25,20 +26,26 @@ from helpers.injection_check import run_injection_check
 from helpers.pii import AnonymizerService
 from helpers.base_api import make_openai_call_api
 
-from .models import Rule
+from .models import Rule,Organisation,Admin_Users,Queries
 
 import os
 import tempfile
 
-anonymizer= AnonymizerService()
+
+# ADMIN APIS
+# get api for queris (get all)
+# rule threshold change api 
+# rule add delete modify api
+# api for number of type of violations -- ask mayank
+# alert api's, as in prompt inject hui h to admin ko alert chala jae
+# query safe/unsafe - general alert, prompt inject - high alert
 
 
-# file me se rules --done
-# rules ka model theek --done
-# queries model
-# chunk size-512 -- done
-# multiple collection me se query
-# auth-pal
+# USER
+# multiple collection me se query - chunks api
+# summary/suggestion api for user for better usage/ safety score of user
+# discuss mayank (mimic stream ya ek call dubara (jeck))
+
 
 
 class User_Register(APIView):
@@ -67,6 +74,9 @@ def create_rules(request):
     output_name= "output"
     ans= main(collection_name, dir_path, output_name)
 
+    # Register Rules in Organisation's Framework
+
+
     # TODO:     RULES  TO BE SAVED IN MODEL
     rule = Rule()
     rule.rules_json = ans
@@ -74,59 +84,112 @@ def create_rules(request):
 
     return Response({'rules':ans})
 
-@api_view(['POST'])
-def create_rules_new(request):
-    uploaded_files= request.FILES.values()
+
+class RULES(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self,request):
+    # GET RULES FOR ADMIN REGISTERED TO THAT ORGANISATION
+        admin_org = Organisation.objects.all().get(org_admin=request.user)
+        
+        rules = Rule.objects.all().filter(org_id=admin_org.pk)
+        # serialized_rules = serialize('json', rules)
+        
+        # Return the serialized data
+        return Response({'rules':list(rules.values())})
     
-    # Create a temporary directory
-    temp_dir = tempfile.mkdtemp()
+    def post(self,request):
+        uploaded_files= request.FILES.values()
+    
+        # Create a temporary directory
+        temp_dir = tempfile.mkdtemp()
 
-    for file_obj in uploaded_files:
-        file_name = file_obj.name
-        print(file_name)
-        file_path = os.path.join(temp_dir, file_name)
-        with open(file_path, 'wb') as f:
-            f.write(file_obj.read())
+        for file_obj in uploaded_files:
+            file_name = file_obj.name
+            print(file_name)
+            file_path = os.path.join(temp_dir, file_name)
+            with open(file_path, 'wb') as f:
+                f.write(file_obj.read())
 
-    collection_name= "rules"
-    output_name= "output"
-    ans= main(collection_name, temp_dir, output_name)
+        collection_name= "rules"
+        output_name= "output"
+        ans= main(collection_name, temp_dir, output_name)
 
-    # rules = ans['rules']
-    # print(ans)
+        # rules = ans['rules']
+        # print(ans)
+        try:
+            admin_org = Organisation.objects.get(org_admin=request.user)
+        except:
+            return Response({'error':'Invalid Admin Credentials'})
 
-    # print("rules: ",rules)
-    for rule_number, rule_description in ans.items():
-        print('here')
-        # Extract rule number from key (e.g., "rule_1" -> "1")
-        rule= Rule()
-        rule.rule_number= rule_number
-        rule.rule_description= rule_description
-        rule.save()
+        # print("rules: ",rules)
+        for rule_number, rule_description in ans.items():
+            print('here')
+            # Extract rule number from key (e.g., "rule_1" -> "1")
+            rule= Rule()
+            rule.org_id = admin_org
+            rule.rule_number = rule_number
+            rule.rule_description = rule_description
+            rule.save()
 
-    # TODO:     RULES  TO BE SAVED IN MODEL
-    # rule = Rule()
-    # rule.rules_json = ans
-    # rule.save()
+        # TODO:     RULES  TO BE SAVED IN MODEL
+        # rule = Rule()
+        # rule.rules_json = ans
+        # rule.save()
 
-    return Response({'rules':ans})
+        return Response({'rules':ans})
+    
 
+# @api_view(['POST'])
+# def create_rules_new(request):
+#     uploaded_files= request.FILES.values()
+    
+#     # Create a temporary directory
+#     temp_dir = tempfile.mkdtemp()
 
-@api_view(['GET'])
-def get_rules(request):
-    # Serialize the queryset of Rule objects into JSON format
-    rules = Rule.objects.all()
-    serialized_rules = serialize('json', rules)
+#     for file_obj in uploaded_files:
+#         file_name = file_obj.name
+#         print(file_name)
+#         file_path = os.path.join(temp_dir, file_name)
+#         with open(file_path, 'wb') as f:
+#             f.write(file_obj.read())
 
-    # Return the serialized data
-    return Response(serialized_rules)
+#     collection_name= "rules"
+#     output_name= "output"
+#     ans= main(collection_name, temp_dir, output_name)
+
+#     # rules = ans['rules']
+#     # print(ans)
+
+#     # print("rules: ",rules)
+#     for rule_number, rule_description in ans.items():
+#         print('here')
+#         # Extract rule number from key (e.g., "rule_1" -> "1")
+#         rule= Rule()
+#         rule.rule_number= rule_number
+#         rule.rule_description= rule_description
+#         rule.save()
+
+#     # TODO:     RULES  TO BE SAVED IN MODEL
+#     # rule = Rule()
+#     # rule.rules_json = ans
+#     # rule.save()
+
+#     return Response({'rules':ans})  
+# @api_view(['GET'])
+# def get_rules(request):
+#     # TODO  GET RULES FROM MODEL
+#     rules = Rule.objects.first()
+#     return Response({'rules':rules.rules_json})
 
 @api_view(['GET'])
 def get_all_collections(request):
     collection_manager= CreateCollection()
     collections = collection_manager.all_collections()
     names = [collection.name for collection in collections]
-    return Response({"collections":names})
+    categories= [collection.metadata for collection in collections]
+    return Response({"collections":names, "categories":categories})
 
 @api_view(['POST'])
 def new_file_upload(request):
@@ -158,64 +221,145 @@ def return_top_chunks(request):
     query= request.data['query']
 
     ans= return_chunks_from_collection(query,collection_name, folder_path='temp', output_name="output")
+    # print("TOP CHUNKS:")
     
     return Response({'chunks':ans})
     
 
-@api_view(['POST'])
-def query_classification(request):
-    query= request.data['query']
-    messages=[]
-    add_message('system',query_classification_prompt,messages)
-    add_message('user',f"query: {query}",messages)
-    ans= make_openai_call(messages)
+class Classify_Query(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
-    # TODO save info in user conversations
+    def post(self,request):
+        query= request.data['query']
+        messages=[]
+        add_message('system',query_classification_prompt,messages)
+        add_message('user',f"query: {query}",messages)
+        ans= make_openai_call_api(messages)
+        ans= json.loads(ans)
 
-    return Response(ans)
+        # TODO save info in user conversations
+        obj = Queries()
+        obj.user_id = request.user
+        obj.query = query
+        obj.category = ans.get('class')
+        obj.description = ans.get('reason')
+        obj.save()
 
-
-@api_view(['POST'])
-def injection_check_api(request):
-    query= request.data['query']
-    ans= run_injection_check(query)
-    return Response({"result":ans})
-
-
-
-@api_view(['POST'])
-def chatbot_with_pii(request):
-
-    #TODO
-    # First send query for question classification
-    # If success 
-    #   Second check for prompt injection
-        # if caught
-        #     generate KeyError
-        # else
-        #     based on question gather rag chunks , anonymize them with the question and send to gpt
-        #     then after response deanonymize_text
-    # else
-    #   generate alert
+        return Response(ans)
     
-    question= request.data['query']
+# @api_view(['POST'])
+# def query_classification(request):
+#     query= request.data['query']
+#     messages=[]
+#     add_message('system',query_classification_prompt,messages)
+#     add_message('user',f"query: {query}",messages)
+#     ans= make_openai_call_api(messages)
+#     ans= json.loads(ans)
+#     # TODO save info in user conversations
 
-    # Collect RAG Chunks based on questions
-    collection_name= request.data['collection_name']
-    ans= return_chunks_from_collection(question,collection_name, folder_path='temp', output_name="output")
+#     return Response({'response':ans})
 
-    # #STEP 1 Anonymize data
-    anonymizer.reset_mapping()
-    anonymized_question= anonymizer.anonymize_text(question)
-    anonymized_chunks = anonymizer.anonymize_text(str(ans))
+class Injection(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
-    #Step 2 Make OpenAi call
-    messages=[]
-    add_message('user',f"Answer the query based on the context provided.CONTEXT ::: {str(anonymized_chunks)} QUERY ::: {anonymized_question}",messages)
-    print(messages)
-    response = make_openai_call_api(messages)
+    def post(self,request):
+        query= request.data['query']
+        ans= run_injection_check(query)
 
-    # Step 3 DeAnonymize
-    deanonymize_text = anonymizer.deanonymize_text(str(response))
+        #save info in user conversations
+        obj = Queries()
+        obj.user_id = request.user
+        obj.query = query
+        obj.category = ans
+        obj.description = 'Detected Prompt Injection by user. Generating alert to Admin'
+        obj.save()
 
-    return Response({"gpt_response":response,"deanonymize":deanonymize_text})
+        return Response({"result":ans})
+    
+# @api_view(['POST'])
+# def injection_check_api(request):
+#     query= request.data['query']
+#     ans= run_injection_check(query)
+#     return Response({"result":ans})
+anonymizer= AnonymizerService()
+
+class PII(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+
+    def post(self,request):
+        question= request.data['query']
+
+        # Collect RAG Chunks based on questions
+        collection_name= request.data['collection_name']
+        ans= return_chunks_from_collection(question,collection_name, folder_path='temp', output_name="output")
+
+
+        # #STEP 1 Anonymize data
+        anonymizer.reset_mapping()
+        anonymized_question= anonymizer.anonymize_text(question)
+        anonymized_chunks = anonymizer.anonymize_text(str(ans))
+
+        #Step 2 Make OpenAi call
+        messages=[]
+        add_message('system', 'You are a very good data researcher.You are tasked with answering any question being asked.',messages)
+        add_message('user',f"Answer the query based on the context provided. Give a very detailed answer.CONTEXT ::: {str(anonymized_chunks)} QUERY ::: {anonymized_question}.Provide output in Proper Format and Points such as bullet or numbered or underlining the important words",messages)
+
+        response = make_openai_call_api(messages)
+
+        # Step 3 DeAnonymize
+        deanonymize_text = anonymizer.deanonymize_text(str(response))
+
+        return Response({"gpt_response":response,"deanonymize":deanonymize_text})
+
+# @api_view(['POST'])
+# def chatbot_with_pii(request):
+
+
+#     #TODO
+#     # First send query for question classification
+#     # If success 
+#     #   Second check for prompt injection
+#         # if caught
+#         #     generate KeyError
+#         # else
+#         #     based on question gather rag chunks , anonymize them with the question and send to gpt
+#         #     then after response deanonymize_text
+#     # else
+#     #   generate alert
+    
+#     question= request.data['query']
+
+#     # Collect RAG Chunks based on questions
+#     collection_name= request.data['collection_name']
+#     ans= return_chunks_from_collection(question,collection_name, folder_path='temp', output_name="output")
+
+#     # #STEP 1 Anonymize data
+#     anonymizer= AnonymizerService()
+#     anonymized_question= anonymizer.anonymize_text(question)
+#     anonymized_chunks = anonymizer.anonymize_text(str(ans))
+
+#     #Step 2 Make OpenAi call
+#     messages=[]
+#     add_message('user',f"Answer the query based on the context provided.CONTEXT ::: {str(anonymized_chunks)} QUERY ::: {anonymized_question}",messages)
+#     print(messages)
+#     response = make_openai_call_api(messages)
+
+#     # Step 3 DeAnonymize
+#     deanonymize_text = anonymizer.deanonymize_text(str(response))
+
+#     return Response({"gpt_response":response,"deanonymize":deanonymize_text})
+
+def get_response(messages,stream:bool=True):
+        if stream:
+            for result in make_openai_call_api(messages=messages,stream=stream):
+                yield result
+
+def streamed_response(request):
+    text = request.data['query']
+    messages = []
+    add_message('user',f"Return the text as at is without making any changes or additional text . TEXT : {text}")
+    return StreamingHttpResponse(get_response(messages=messages), content_type='text/event-stream')
