@@ -33,16 +33,18 @@ import tempfile
 
 
 # ADMIN APIS
-# get api for queris (get all)
+# get api for queris (get all) -- done
 # rule threshold change api 
 # rule add delete modify api
 # api for number of type of violations -- ask mayank
 # alert api's, as in prompt inject hui h to admin ko alert chala jae
 # query safe/unsafe - general alert, prompt inject - high alert
 
+# category of document
+
 
 # USER
-# multiple collection me se query - chunks api
+# multiple collection me se query - chunks api -- done
 # summary/suggestion api for user for better usage/ safety score of user
 # discuss mayank (mimic stream ya ek call dubara (jeck))
 
@@ -213,18 +215,59 @@ def new_file_upload(request):
 
     return Response({"message":f"Collection {file_name_without_extension} created"})
 
+# @api_view(['POST'])
+# def return_top_chunks(request):
+#     # returns top chunks from a collection
+
+#     collection_name= request.data['collection_name']
+#     query= request.data['query']
+
+#     ans= return_chunks_from_collection(query,collection_name, folder_path='temp', output_name="output")
+#     # print("TOP CHUNKS:")
+    
+#     return Response({'chunks':ans})
+    
 @api_view(['POST'])
 def return_top_chunks(request):
-    # returns top chunks from a collection
+    collection_data = request.data.get('collections', None)
+    query = request.data.get('query', None)
 
-    collection_name= request.data['collection_name']
-    query= request.data['query']
+    # Check for required data
+    if not collection_data or not query:
+        return Response({'error': 'Missing required data (collections and query)'}, status=400)
 
-    ans= return_chunks_from_collection(query,collection_name, folder_path='temp', output_name="output")
-    # print("TOP CHUNKS:")
-    
-    return Response({'chunks':ans})
-    
+    # Initialize an empty list to store all chunks
+    all_chunks = []
+    print('collection_data', collection_data)
+    # Extract collection names from request data
+    collection_names = []
+    for key, value in collection_data.items():
+        if key.startswith('collection_name_'):
+            # Extract number from key
+            try:
+                number = int(key.split('_')[-1])
+                collection_names.append(value)
+            except ValueError:
+                # Ignore invalid format
+                pass
+
+    # Check if any valid collections were extracted
+    if not collection_names:
+        return Response({'error': 'Invalid collection name format'}, status=400)
+
+    # Loop through each collection and retrieve chunks
+    for collection_name in collection_names:
+        try:
+            chunks = return_chunks_from_collection(query, collection_name, folder_path='temp', output_name="output")
+            all_chunks.append(chunks)  # Add chunks to the combined list
+        except Exception as e:
+            # Handle errors gracefully (e.g., log the error)
+            return Response({'error': f'Error processing collection {collection_name}'}, status=500)
+
+    # Return response with all collected chunks
+    return Response({'chunks': all_chunks})
+
+
 
 class Classify_Query(APIView):
     authentication_classes = [TokenAuthentication]
