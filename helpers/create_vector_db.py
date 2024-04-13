@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 class CreateCollection:
     """Class to create and manage a collection in a chromadb database."""
     
-    def __init__(self, db_path: Optional[str] = None) -> None:
+    def _init_(self, db_path: Optional[str] = None) -> None:
         """
         Initialize the CreateCollection class.
 
@@ -39,7 +39,7 @@ class CreateCollection:
         collection = self.client.get_collection(name=collection_name)
         return collection
     
-    def create_collection(self, collection_name: str):
+    def create_collection(self, collection_name: str,category):
         """Create a new collection in the database."""
         self.client = self._create_client()
         # client.reset()
@@ -51,7 +51,7 @@ class CreateCollection:
             # self.client.reset()
             logging.info('Creating database...')
             collection = self.client.create_collection(collection_name,
-                                                  metadata={"hnsw:space": "cosine"})
+                                                  metadata={"hnsw:space": "cosine", "category":category})
             self.EXISTING_DB = False
             logging.info(collection_name)
             logging.info(collection.count())
@@ -82,6 +82,7 @@ class CreateCollection:
             image_data_list= df['Image_Data'].to_list()
             category_list= df['Category'].to_list()
             keywords_list= df['Keywords'].to_list()
+            category= category_list[0]
 
             metadatas = []
             for i in range(len(file_name_list)):
@@ -95,7 +96,7 @@ class CreateCollection:
             raise Exception("CSV file not formatted correctly.")
         logging.info('CSV file loaded successfully.')
 
-        db_collection = self.create_collection(collection_name)
+        db_collection = self.create_collection(collection_name,category)
         count = db_collection.count()
         # documents = [sentence[0] for sentence in sentences]
         documents = [sentence[0] for sentence in sentences if isinstance(sentence, list) and sentence]  # Check for empty lists
@@ -105,7 +106,7 @@ class CreateCollection:
         else:
             ids = [str(index + count) for index, _ in enumerate(sentences)]
 
-        
+        print(metadata)
         # if not self.EXISTING_DB:
         db_collection.add(documents=documents,
                                 metadatas=metadatas,
@@ -130,7 +131,7 @@ class CreateCollection:
             logging.info("Filling database with data from CSV FILE...")
             db_collection = self.fill_collection_csv(collection_name,data_df)  # If we want to add csv data to database
         else:
-            db_collection = self.create_collection(collection_name)
+            db_collection = self.create_collection(collection_name,category="temp")
         logging.info(db_collection.count())
         
         return db_collection

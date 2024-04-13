@@ -29,6 +29,7 @@ class Rule(BaseModel):
 class Queries(BaseModel):
     user_id = models.ForeignKey(User,on_delete=models.CASCADE,related_name='admin_id')
     query = models.TextField()
+    query_type = models.CharField(max_length=100)
     category = models.CharField(max_length=100)
     description = models.TextField()
 
