@@ -122,8 +122,8 @@ class PDFToCSVConverter:
                 rows.append([pdf_name, page_number, combined_list[0][i],combined_list[1][i], image_values, category, keywords])
 
         df = pd.DataFrame(rows, columns=["file_name", "Page Number", "Content", "tokens","Image_Data", "Category", "Keywords"])
-        df.to_csv(self.csv_file_name, index=False)
-        # self.append_to_csv(df)
+        # df.to_csv(self.csv_file_name, index=False)
+        self.append_to_csv(df)
     
     
     def append_to_csv(self, df):

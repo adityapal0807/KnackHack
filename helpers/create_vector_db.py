@@ -24,24 +24,30 @@ class CreateCollection:
         """
         self.db_path = db_path if db_path else './db'
         self.EXISTING_DB = False
+        self.client = self._create_client()
 
     def _create_client(self):
         """Create a chromadb client."""
         return chromadb.PersistentClient(path=self.db_path, settings=Settings(allow_reset=True))
 
     def all_collections(self):
-        self.client = self._create_client()
+        # self.client = self._create_client()
         return self.client.list_collections()
     
     def get_collection(self,collection_name: str):
-        self.client = self._create_client()
+        # self.client = self._create_client()
         logging.info(self.client.list_collections())
         collection = self.client.get_collection(name=collection_name)
         return collection
+
+    def delete_collection(self, collection_name):
+        # self.client= self._create_client()
+        self.client.delete_collection(name=collection_name)
+        logging.info(f"Collection {collection_name} deleted")
     
-    def create_collection(self, collection_name: str):
+    def create_collection(self, collection_name: str,category):
         """Create a new collection in the database."""
-        self.client = self._create_client()
+        # self.client = self._create_client()
         # client.reset()
         try:
             collection = self.client.get_collection(name=collection_name)
@@ -51,7 +57,7 @@ class CreateCollection:
             # self.client.reset()
             logging.info('Creating database...')
             collection = self.client.create_collection(collection_name,
-                                                  metadata={"hnsw:space": "cosine"})
+                                                  metadata={"hnsw:space": "cosine", "category":category})
             self.EXISTING_DB = False
             logging.info(collection_name)
             logging.info(collection.count())
@@ -82,6 +88,7 @@ class CreateCollection:
             image_data_list= df['Image_Data'].to_list()
             category_list= df['Category'].to_list()
             keywords_list= df['Keywords'].to_list()
+            category= category_list[0]
 
             metadatas = []
             for i in range(len(file_name_list)):
@@ -95,7 +102,7 @@ class CreateCollection:
             raise Exception("CSV file not formatted correctly.")
         logging.info('CSV file loaded successfully.')
 
-        db_collection = self.create_collection(collection_name)
+        db_collection = self.create_collection(collection_name,category)
         count = db_collection.count()
         # documents = [sentence[0] for sentence in sentences]
         documents = [sentence[0] for sentence in sentences if isinstance(sentence, list) and sentence]  # Check for empty lists
@@ -105,13 +112,21 @@ class CreateCollection:
         else:
             ids = [str(index + count) for index, _ in enumerate(sentences)]
 
-        
+        print(metadata)
         # if not self.EXISTING_DB:
         db_collection.add(documents=documents,
                                 metadatas=metadatas,
                                 ids=ids)
         logging.info(db_collection.count())
         logging.info("Database filled successfully.")
+
+        # remove csv
+        csv_file_path="output.csv"
+        if os.path.exists(csv_file_path):
+            os.remove(csv_file_path)
+            print(f"The file '{csv_file_path}' has been successfully deleted.")
+        else:
+            print(f"The file '{csv_file_path}' does not exist.")
         return db_collection
     
     # Which collection to select If fill _collection =True then we need csv path so we can fill the csv
@@ -122,7 +137,7 @@ class CreateCollection:
             logging.info("Filling database with data from CSV FILE...")
             db_collection = self.fill_collection_csv(collection_name,data_df)  # If we want to add csv data to database
         else:
-            db_collection = self.create_collection(collection_name)
+            db_collection = self.create_collection(collection_name,category="temp")
         logging.info(db_collection.count())
         
         return db_collection
@@ -130,6 +145,6 @@ class CreateCollection:
                 
     def run_query(self,collection, query: str) -> List[Tuple]:
         """Run a query against the collection."""
-        results = collection.query(query_texts=[query], n_results=4)
+        results = collection.query(query_texts=[query], n_results=10)
 
         return results

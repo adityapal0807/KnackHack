@@ -60,10 +60,12 @@ class Agent:
         results = self.run_query(query)
         documents = results['documents']
         doc_dict = {}
+        chunks = []
         for i, doc in enumerate(documents[0]):
-            doc_dict[f"Result {i}"] = doc
+            # doc_dict[f"Result {i}"] = doc
+            chunks.append(doc)
 
-        print(doc_dict)
+        print(chunks)
 
         # doc_string = ""
         # for key, value in doc_dict.items():
@@ -72,7 +74,7 @@ class Agent:
         # logging.info("Documents retreived...")
         # print(doc_string)
         # return doc_string
-        return doc_dict
+        return chunks
 
     def memory_manager(self, memory_content, role):
         self.memory.append({"role": f"{role}", "content": f"{memory_content}"})
