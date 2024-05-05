@@ -79,7 +79,7 @@ class CreateCollection:
         
         try:
             # sentences = df['Info'].apply(lambda x: re.split('\.\s', x)).tolist()
-            sentences= df['Content'].str.split('.').tolist()
+            sentences= df['Content'].tolist()
 
             # for metadata
             file_name_list= df['file_name'].tolist()
@@ -105,7 +105,7 @@ class CreateCollection:
         db_collection = self.create_collection(collection_name,category)
         count = db_collection.count()
         # documents = [sentence[0] for sentence in sentences]
-        documents = [sentence[0] for sentence in sentences if isinstance(sentence, list) and sentence]  # Check for empty lists
+        documents = [sentence for sentence in sentences if isinstance(sentence, str) and sentence]  # Check for empty lists
         
         if count > 0:
             ids = [str(index + count +1) for index, _ in enumerate(sentences)]
