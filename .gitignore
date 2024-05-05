@@ -2,3 +2,5 @@
 *.pyo
 __pycache__/
 db/
+.env
+helpers/open_ai_key.py
