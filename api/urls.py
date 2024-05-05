@@ -6,6 +6,7 @@ urlpatterns = [
     path('register',User_Register.as_view()),
     path('get_view',GET_VIEW.as_view()),
     path('rules',RULES.as_view()),
+    path('delete_all_rules', delete_all_rules),
     path('classify_query',Classify_Query.as_view()),
     path('injection',Injection.as_view()),
     path('check_pii',PII.as_view()),

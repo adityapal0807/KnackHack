@@ -21,7 +21,7 @@ from helpers.agent import main
 from helpers.create_vector_db import CreateCollection
 from helpers.agent import create_new_collection, return_chunks_from_collection
 from helpers.response import make_openai_call, add_message
-from helpers.prompts import query_classification_prompt,safety_prompt
+from helpers.prompts import query_classification_prompt,safety_prompt, pii_prompt, general_pii_prompt
 from helpers.injection_check import run_injection_check
 from helpers.pii import AnonymizerService
 from helpers.base_api import make_openai_call_api,make_openai_call_api_stream
@@ -199,7 +199,26 @@ def delete_rule(request):
         return Response({"error": "Rule not found"}, status=404)
 
     rule.delete()
-    return Response({"message":'rule deleted'},status=204)
+    return Response({"message":'rule deleted'},status=200)
+
+@api_view(['DELETE'])
+def delete_all_rules(request):
+
+    # delete from models
+    try:
+        Rule.objects.all().delete()
+    except:
+        pass
+
+    # delete rules collection
+    try:
+        collection_manager= CreateCollection()
+        collection_manager.delete_collection("rules")
+    except:
+        pass
+
+    return Response({"message": "All rules have been deleted"}, status=200)
+
 
 @api_view(['GET'])
 def get_all_collections(request):
@@ -294,7 +313,8 @@ class Classify_Query(APIView):
         rules = Rule.objects.all()
 
         # Concatenate rule numbers and descriptions into a single string
-        rules_string = "\n".join([f"{rule.rule_number}: {rule.rule_description}" for rule in rules])
+        rules_string = "\n".join([f"{rule.rule_number}: {rule.rule_description} \n {rule.rule_number}_Threshold: {rule.rule_threshold}" for rule in rules])
+        print(rules_string)
 
         messages=[]
         add_message('system',query_classification_prompt(rules_string),messages)
@@ -364,152 +384,96 @@ class PII(APIView):
         # Collect RAG Chunks based on questions
         # collection_name= request.data['collection_name']
         # ans= return_chunks_from_collection(question,collection_name, folder_path='temp', output_name="output")
-        collection_data = request.data.get('collections', None)
-        query = request.data.get('query', None)
-
-        # Check for required data
-        if not collection_data or not query:
-            return Response({'error': 'Missing required data (collections and query)'}, status=400)
-
-        # Initialize an empty list to store all chunks
-        all_chunks = []
-        # print('collection_data', collection_data)
-        # Extract collection names from request data
-        collection_names = []
-        for key, value in collection_data.items():
-            if key.startswith('collection_name_'):
-                # Extract number from key
-                try:
-                    number = int(key.split('_')[-1])
-                    collection_names.append(value)
-                except ValueError:
-                    # Ignore invalid format
-                    pass
-
-        # Check if any valid collections were extracted
-        if not collection_names:
-            return Response({'error': 'Invalid collection name format'}, status=400)
-
-        # Loop through each collection and retrieve chunks
-        for collection_name in collection_names:
-            try:
-                chunks = return_chunks_from_collection(query, collection_name, folder_path='temp', output_name="output")
-                all_chunks.append(chunks)  # Add chunks to the combined list
-            except Exception as e:
-                # Handle errors gracefully (e.g., log the error)
-                # return Response({'error': f'Error processing collection {collection_name}'}, status=500)
-                continue
-
         
+        query = request.data.get('query', None)
+        collection_data = request.data.get('collections', None)
+        if len(collection_data) != 0:
+            
+            # Check for required data
+            if not collection_data or not query:
+                return Response({'error': 'Missing required data (collections and query)'}, status=400)
 
-        # #STEP 1 Anonymize data
+            # Initialize an empty list to store all chunks
+            all_chunks = []
+            # print('collection_data', collection_data)
+            # Extract collection names from request data
+            collection_names = []
+            for key, value in collection_data.items():
+                if key.startswith('collection_name_'):
+                    # Extract number from key
+                    try:
+                        number = int(key.split('_')[-1])
+                        collection_names.append(value)
+                    except ValueError:
+                        # Ignore invalid format
+                        pass
 
-        anonymized_question= anonymizer.anonymize_text(query)
-        anonymized_chunks = anonymizer.anonymize_text(str(all_chunks))
+            # Check if any valid collections were extracted
+            if not collection_names:
+                return Response({'error': 'Invalid collection name format'}, status=400)
 
-        #Step 2 Make OpenAi call
-        messages=[]
-        add_message('system', 'You are a very good data researcher.You are tasked with answering any question being asked.',messages)
-        add_message('user',f"Answer the query based on the context provided. Give a very detailed answer.CONTEXT ::: {str(anonymized_chunks)} QUERY ::: {anonymized_question}.Provide output in Proper Format and Points such as bullet or numbered or underlining the important words",messages)
+            # Loop through each collection and retrieve chunks
+            for collection_name in collection_names:
+                try:
+                    chunks = return_chunks_from_collection(query, collection_name, folder_path='temp', output_name="output")
+                    all_chunks.append(chunks)  # Add chunks to the combined list
+                except Exception as e:
+                    # Handle errors gracefully (e.g., log the error)
+                    # return Response({'error': f'Error processing collection {collection_name}'}, status=500)
+                    continue
 
-        response = make_openai_call_api(messages)
+            # #STEP 1 Anonymize data
 
-        # Step 3 DeAnonymize
-        deanonymize_text = anonymizer.deanonymize_text(str(response))
+            anonymized_question= anonymizer.anonymize_text(query)
+            anonymized_chunks = anonymizer.anonymize_text(str(all_chunks))
 
-        messages_stream = []
-        add_message('user',f"Return the text as at is without making any changes or additional text . TEXT : {deanonymize_text}",messages_stream)
+            #Step 2 Make OpenAi call
+            messages=[]
+            add_message('system', pii_prompt,messages)
+            add_message('user',f"Answer the query based on the context provided .CONTEXT ::: {str(anonymized_chunks)} QUERY ::: {anonymized_question}.Provide output in Proper Format and Points such as bullet or numbered or underlining the important words",messages)
 
-        #Save in Database
-        obj = Queries()
-        obj.user_id = request.user
-        obj.query = query
-        obj.query_type = 'Safe'
-        obj.category = 'Safe'
-        obj.description = "Query Safe , Following all organisation's compliance"
-        obj.save()
+            response = make_openai_call_api(messages)
 
-        # return Response({"gpt_response":response,"deanonymize":deanonymize_text})
-        # print(self.get_response(messages=messages))
-        return StreamingHttpResponse(self.gpt_stream(messages=messages_stream), content_type='text/event-stream')
+            # Step 3 DeAnonymize
+            deanonymize_text = anonymizer.deanonymize_text(str(response))
+            print(anonymizer.anonymizer.deanonymizer_mapping)
+
+            messages_stream = []
+            add_message('user',f"Return the text as at is without making any changes or additional text . TEXT : {deanonymize_text}",messages_stream)
+
+            #Save in Database
+            obj = Queries()
+            obj.user_id = request.user
+            obj.query = query
+            obj.query_type = 'Safe'
+            obj.category = 'Safe'
+            obj.description = "Query Safe , Following all organisation's compliance"
+            obj.save()
+
+            # return Response({"gpt_response":response,"deanonymize":deanonymize_text})
+            # print(self.get_response(messages=messages))
+            return StreamingHttpResponse(self.gpt_stream(messages=messages_stream), content_type='text/event-stream')
+        else:
+            messages=[]
+            add_message('system', general_pii_prompt, messages)
+            add_message('user',f"Answer the query QUERY ::: {query}.Provide output in Proper Format and Points such as bullet or numbered or underlining the important words",messages)
+            obj = Queries()
+            obj.user_id = request.user
+            obj.query = query
+            obj.query_type = 'Safe'
+            obj.category = 'Safe'
+            obj.description = "Query Safe , Following all organisation's compliance"
+            obj.save()
+
+            return StreamingHttpResponse(self.gpt_stream(messages=messages), content_type='text/event-stream')
+
     
     def gpt_stream(self,messages):
         for result in make_openai_call_api_stream(messages=messages):
             yield result
 
         anonymizer.reset_mapping()
-
-    # def get_response(self, messages):
-    #     for result in make_openai_call_api_stream(messages):
             
-    #         # result_data = json.loads(result)
-    #         denanonymize = anonymizer.deanonymize_text(str(result))
-    #         if str(denanonymize) not in str(result):
-    #             yield 'denanonymize'
-    #         # if 'text' in result_data:
-    #         #     deanonymized_text = anonymizer.deanonymize_text(result_data['choices'][0].get('delta').get('content'))
-    #         #     if deanonymized_text not in result_data['choices'][0].get('delta').get('content'):
-    #         #         yield result_data['choices'][0].get('delta').get('content')
-    #         #     else:
-    #         #         yield deanonymized_text
-    #         #     print(f"Original Text: {result_data['text']}")
-    #         #     print(f"Deanonymized Text: {deanonymized_text}")
-    #         #     result_data['choices'][0]['delta']['content'] = deanonymized_text
-    #         # yield f"data: {json.dumps(result_data)}\n\n"
-            
-
-# @api_view(['POST'])
-# def chatbot_with_pii(request):
-
-
-#     #TODO
-#     # First send query for question classification
-#     # If success 
-#     #   Second check for prompt injection
-#         # if caught
-#         #     generate KeyError
-#         # else
-#         #     based on question gather rag chunks , anonymize them with the question and send to gpt
-#         #     then after response deanonymize_text
-#     # else
-#     #   generate alert
-    
-#     question= request.data['query']
-
-#     # Collect RAG Chunks based on questions
-#     collection_name= request.data['collection_name']
-#     ans= return_chunks_from_collection(question,collection_name, folder_path='temp', output_name="output")
-
-#     # #STEP 1 Anonymize data
-#     anonymizer= AnonymizerService()
-#     anonymized_question= anonymizer.anonymize_text(question)
-#     anonymized_chunks = anonymizer.anonymize_text(str(ans))
-
-#     #Step 2 Make OpenAi call
-#     messages=[]
-#     add_message('user',f"Answer the query based on the context provided.CONTEXT ::: {str(anonymized_chunks)} QUERY ::: {anonymized_question}",messages)
-#     print(messages)
-#     response = make_openai_call_api(messages)
-
-#     # Step 3 DeAnonymize
-#     deanonymize_text = anonymizer.deanonymize_text(str(response))
-
-#     return Response({"gpt_response":response,"deanonymize":deanonymize_text})
-
-# def get_response(messages,stream:bool=True):
-#         for result in make_openai_call_api_stream(messages=messages):
-#             yield result
-
-
-# @api_view(['POST'])
-# def streamed_response(request):
-#     text = request.data['text']
-#     messages = []
-#     add_message('user',f"Return the text as at is without making any changes or additional text . TEXT : {text}",messages)
-#     return StreamingHttpResponse(get_response(messages=messages), content_type='text/event-stream')
-
-
-
 class Admin_Panel(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -523,7 +487,6 @@ class Admin_Panel(APIView):
             
             # Get all queries associated with the current user
             queries = Queries.objects.filter(user_id=user.sub_user)
-            
             for query in queries:
                 # Create a dictionary for each query
                 query_data = {
@@ -531,6 +494,8 @@ class Admin_Panel(APIView):
                     'type':query.query_type,
                     'category': query.category,
                     'description': query.description,
+                    'create_at':query.uploaded_date
+
                 }
                 
                 # Append the query dictionary to the user_queries list
@@ -568,10 +533,10 @@ class Generate_Summary(APIView):
         add_message('user',f'CHAT HISTORY : {chat_history}',messages)
 
         #remove for stream
-        response = make_openai_call_api(messages)
+        # response = make_openai_call_api(messages)
 
-        # return StreamingHttpResponse(self.gpt_stream(messages=messages), content_type='text/event-stream')
-        return Response({"gpt_response":response})
+        return StreamingHttpResponse(self.gpt_stream(messages=messages), content_type='text/event-stream')
+        # return Response({"gpt_response":response})
 
     def gpt_stream(self,messages):
         for result in make_openai_call_api_stream(messages=messages):

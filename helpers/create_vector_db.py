@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 class CreateCollection:
     """Class to create and manage a collection in a chromadb database."""
     
-    def _init_(self, db_path: Optional[str] = None) -> None:
+    def __init__(self, db_path: Optional[str] = None) -> None:
         """
         Initialize the CreateCollection class.
 
@@ -24,24 +24,30 @@ class CreateCollection:
         """
         self.db_path = db_path if db_path else './db'
         self.EXISTING_DB = False
+        self.client = self._create_client()
 
     def _create_client(self):
         """Create a chromadb client."""
         return chromadb.PersistentClient(path=self.db_path, settings=Settings(allow_reset=True))
 
     def all_collections(self):
-        self.client = self._create_client()
+        # self.client = self._create_client()
         return self.client.list_collections()
     
     def get_collection(self,collection_name: str):
-        self.client = self._create_client()
+        # self.client = self._create_client()
         logging.info(self.client.list_collections())
         collection = self.client.get_collection(name=collection_name)
         return collection
+
+    def delete_collection(self, collection_name):
+        # self.client= self._create_client()
+        self.client.delete_collection(name=collection_name)
+        logging.info(f"Collection {collection_name} deleted")
     
     def create_collection(self, collection_name: str,category):
         """Create a new collection in the database."""
-        self.client = self._create_client()
+        # self.client = self._create_client()
         # client.reset()
         try:
             collection = self.client.get_collection(name=collection_name)

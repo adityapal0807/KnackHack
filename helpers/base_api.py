@@ -68,5 +68,4 @@ def make_openai_call_api_stream(messages,model_name='gpt-3.5-turbo',temperature=
                     break
                 if payload.startswith("data:"):
                     data = json.loads(payload.replace("data:", ""))
-                    chunk = data['choices'][0].get('delta').get('content')
-                    yield f"data: {json.dumps(chunk)}\n\n"
+                    yield f"data: {json.dumps(data)}\n\n"
